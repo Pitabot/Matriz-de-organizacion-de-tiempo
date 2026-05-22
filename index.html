@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Matriz de Tiempo</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,700;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0f14;
+    --surface: #141720;
+    --border: #1f2433;
+    --text: #e8eaf0;
+    --muted: #5a607a;
+    --q1: #ff4d6d; --q1-dim: rgba(255,77,109,0.08); --q1-mid: rgba(255,77,109,0.18);
+    --q2: #4ade80; --q2-dim: rgba(74,222,128,0.08); --q2-mid: rgba(74,222,128,0.18);
+    --q3: #fb923c; --q3-dim: rgba(251,146,60,0.08); --q3-mid: rgba(251,146,60,0.18);
+    --q4: #94a3b8; --q4-dim: rgba(148,163,184,0.06); --q4-mid: rgba(148,163,184,0.14);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Background grain */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  header {
+    position: relative; z-index: 1;
+    padding: 2rem 2.5rem 1rem;
+    display: flex; align-items: flex-end; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 2.4rem;
+    letter-spacing: 0.12em;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .logo span { color: var(--q1); }
+
+  .header-meta {
+    font-size: 0.72rem;
+    color: var(--muted);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  .stats-bar {
+    position: relative; z-index: 1;
+    display: flex; gap: 1.5rem;
+    padding: 0.9rem 2.5rem;
+    border-bottom: 1px solid var(--border);
+    background: rgba(20,23,32,0.6);
+    backdrop-filter: blur(8px);
+  }
+
+  .stat {
+    display: flex; align-items: center; gap: 0.5rem;
+    font-size: 0.78rem; color: var(--muted);
+  }
+
+  .stat strong { color: var(--text); font-size: 1rem; font-weight: 500; }
+
+  .stat-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+  }
+
+  .main {
+    position: relative; z-index: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: 1fr 1fr;
+    height: calc(100vh - 130px);
+  }
+
+  .quadrant {
+    border-right: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 1.2rem;
+    display: flex; flex-direction: column;
+    gap: 0.7rem;
+    overflow: hidden;
+    transition: background 0.3s;
+  }
+
+  .quadrant:nth-child(2), .quadrant:nth-child(4) { border-right: none; }
+  .quadrant:nth-child(3), .quadrant:nth-child(4) { border-bottom: none; }
+
+  .q1 { background: var(--q1-dim); }
+  .q2 { background: var(--q2-dim); }
+  .q3 { background: var(--q3-dim); }
+  .q4 { background: var(--q4-dim); }
+
+  .quadrant:hover { filter: brightness(1.05); }
+
+  .q-header {
+    display: flex; align-items: center; justify-content: space-between;
+  }
+
+  .q-label {
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  .q-num {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.6rem;
+    line-height: 1;
+  }
+
+  .q1 .q-num { color: var(--q1); }
+  .q2 .q-num { color: var(--q2); }
+  .q3 .q-num { color: var(--q3); }
+  .q4 .q-num { color: var(--q4); }
+
+  .q-title-block {}
+  .q-title {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .q-subtitle {
+    font-size: 0.72rem;
+    font-weight: 300;
+    font-style: italic;
+    color: var(--muted);
+    opacity: 0.7;
+  }
+
+  .add-btn {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    width: 26px; height: 26px;
+    cursor: pointer;
+    font-size: 1rem;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+    flex-shrink: 0;
+  }
+
+  .q1 .add-btn:hover { border-color: var(--q1); color: var(--q1); background: var(--q1-mid); }
+  .q2 .add-btn:hover { border-color: var(--q2); color: var(--q2); background: var(--q2-mid); }
+  .q3 .add-btn:hover { border-color: var(--q3); color: var(--q3); background: var(--q3-mid); }
+  .q4 .add-btn:hover { border-color: var(--q4); color: var(--q4); background: var(--q4-mid); }
+
+  .tasks-list {
+    flex: 1;
+    overflow-y: auto;
+    display: flex; flex-direction: column; gap: 0.4rem;
+    padding-right: 2px;
+  }
+
+  .tasks-list::-webkit-scrollbar { width: 3px; }
+  .tasks-list::-webkit-scrollbar-track { background: transparent; }
+  .tasks-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .task-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    display: flex; align-items: flex-start; gap: 0.55rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    animation: slideIn 0.25s ease;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .task-card:hover { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); }
+
+  .task-card.done { opacity: 0.4; }
+  .task-card.done .task-text { text-decoration: line-through; }
+
+  .check-box {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    border: 1.5px solid var(--muted);
+    flex-shrink: 0;
+    margin-top: 2px;
+    display: flex; align-items: center; justify-content: center;
+    transition: all 0.2s;
+  }
+
+  .task-card.done .check-box {
+    background: var(--q2); border-color: var(--q2);
+  }
+
+  .check-box::after {
+    content: '✓';
+    font-size: 9px;
+    color: #000;
+    opacity: 0;
+    font-weight: 700;
+  }
+
+  .task-card.done .check-box::after { opacity: 1; }
+
+  .task-body { flex: 1; min-width: 0; }
+
+  .task-text {
+    font-size: 0.8rem;
+    line-height: 1.35;
+    color: var(--text);
+    word-break: break-word;
+  }
+
+  .task-meta {
+    display: flex; align-items: center; gap: 0.5rem;
+    margin-top: 0.25rem;
+    flex-wrap: wrap;
+  }
+
+  .task-date {
+    font-size: 0.62rem;
+    color: var(--muted);
+    letter-spacing: 0.03em;
+  }
+
+  .task-tag {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+
+  .q1 .task-tag { background: var(--q1-mid); color: var(--q1); }
+  .q2 .task-tag { background: var(--q2-mid); color: var(--q2); }
+  .q3 .task-tag { background: var(--q3-mid); color: var(--q3); }
+  .q4 .task-tag { background: var(--q4-mid); color: var(--q4); }
+
+  .delete-btn {
+    background: none; border: none;
+    color: var(--muted); cursor: pointer;
+    font-size: 0.75rem;
+    opacity: 0; transition: opacity 0.2s;
+    flex-shrink: 0;
+    padding: 0 2px;
+  }
+
+  .task-card:hover .delete-btn { opacity: 1; }
+  .delete-btn:hover { color: var(--q1); }
+
+  /* Modal */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(6px);
+    z-index: 100;
+    align-items: center; justify-content: center;
+  }
+
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.8rem;
+    width: 100%; max-width: 400px;
+    animation: modalIn 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  }
+
+  @keyframes modalIn {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .modal-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 1.5rem;
+    letter-spacing: 0.1em;
+    margin-bottom: 1.2rem;
+  }
+
+  .modal .q1 { color: var(--q1); }
+  .modal .q2 { color: var(--q2); }
+  .modal .q3 { color: var(--q3); }
+  .modal .q4 { color: var(--q4); }
+
+  .form-group { margin-bottom: 1rem; }
+
+  .form-label {
+    display: block;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+
+  .form-input, .form-textarea, .form-select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .form-input:focus, .form-textarea:focus, .form-select:focus {
+    border-color: rgba(255,255,255,0.2);
+  }
+
+  .form-textarea { resize: vertical; min-height: 60px; }
+
+  .form-select option { background: var(--surface); }
+
+  .modal-actions {
+    display: flex; gap: 0.75rem; margin-top: 1.4rem;
+  }
+
+  .btn-primary {
+    flex: 1;
+    background: var(--text);
+    color: var(--bg);
+    border: none;
+    border-radius: 8px;
+    padding: 0.65rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .btn-primary:hover { opacity: 0.85; }
+
+  .btn-cancel {
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.65rem 1rem;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 0.82rem;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+
+  .btn-cancel:hover { border-color: var(--muted); }
+
+  .axis-labels {
+    position: fixed; z-index: 2; pointer-events: none;
+  }
+
+  .axis-x {
+    bottom: calc(50vh - 65px);
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex; gap: 6rem;
+  }
+
+  .axis-y {
+    left: calc(50vw - 2px);
+    top: 50%;
+    transform: translateY(-50%) rotate(-90deg);
+    display: flex; gap: 6rem;
+    transform-origin: center;
+  }
+
+  .axis-label {
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--muted);
+    opacity: 0.5;
+  }
+
+  .progress-bar {
+    height: 2px;
+    border-radius: 1px;
+    background: var(--border);
+    overflow: hidden;
+    margin-top: 2px;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 1px;
+    transition: width 0.4s ease;
+  }
+
+  .q1 .progress-fill { background: var(--q1); }
+  .q2 .progress-fill { background: var(--q2); }
+  .q3 .progress-fill { background: var(--q3); }
+  .q4 .progress-fill { background: var(--q4); }
+
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; gap: 0.4rem;
+    height: 60px;
+    opacity: 0.3;
+  }
+
+  .empty-icon { font-size: 1.2rem; }
+  .empty-text { font-size: 0.68rem; color: var(--muted); letter-spacing: 0.08em; }
+
+  @media (max-width: 640px) {
+    header { padding: 1rem 1.2rem 0.8rem; }
+    .logo { font-size: 1.8rem; }
+    .stats-bar { padding: 0.7rem 1.2rem; gap: 1rem; }
+    .main { height: calc(100vh - 110px); }
+    .quadrant { padding: 0.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MATRIZ<span>.</span></div>
+  <div class="header-meta">Organización del Tiempo — Eisenhower</div>
+</header>
+
+<div class="stats-bar">
+  <div class="stat">
+    <div class="stat-dot" style="background:var(--text)"></div>
+    <span>Total: <strong id="stat-total">0</strong></span>
+  </div>
+  <div class="stat">
+    <div class="stat-dot" style="background:var(--q2)"></div>
+    <span>Completadas: <strong id="stat-done">0</strong></span>
+  </div>
+  <div class="stat">
+    <div class="stat-dot" style="background:var(--q1)"></div>
+    <span>Urgentes: <strong id="stat-urgent">0</strong></span>
+  </div>
+  <div class="stat" style="margin-left:auto">
+    <span style="font-size:0.68rem">Progreso: <strong id="stat-pct">0%</strong></span>
+  </div>
+</div>
+
+<div class="main" id="matrix">
+
+  <!-- Q1 -->
+  <div class="quadrant q1" id="q1">
+    <div class="q-header">
+      <div class="q-label">
+        <div class="q-num">I</div>
+        <div class="q-title-block">
+          <div class="q-title">Urgente · Importante</div>
+          <div class="q-subtitle">Hacer ahora mismo</div>
+        </div>
+      </div>
+      <button class="add-btn" onclick="openModal('q1')" title="Agregar tarea">+</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-q1" style="width:0%"></div></div>
+    <div class="tasks-list" id="list-q1"></div>
+  </div>
+
+  <!-- Q2 -->
+  <div class="quadrant q2" id="q2">
+    <div class="q-header">
+      <div class="q-label">
+        <div class="q-num">II</div>
+        <div class="q-title-block">
+          <div class="q-title">No urgente · Importante</div>
+          <div class="q-subtitle">Planificar y agendar</div>
+        </div>
+      </div>
+      <button class="add-btn" onclick="openModal('q2')" title="Agregar tarea">+</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-q2" style="width:0%"></div></div>
+    <div class="tasks-list" id="list-q2"></div>
+  </div>
+
+  <!-- Q3 -->
+  <div class="quadrant q3" id="q3">
+    <div class="q-header">
+      <div class="q-label">
+        <div class="q-num">III</div>
+        <div class="q-title-block">
+          <div class="q-title">Urgente · No importante</div>
+          <div class="q-subtitle">Delegar si es posible</div>
+        </div>
+      </div>
+      <button class="add-btn" onclick="openModal('q3')" title="Agregar tarea">+</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-q3" style="width:0%"></div></div>
+    <div class="tasks-list" id="list-q3"></div>
+  </div>
+
+  <!-- Q4 -->
+  <div class="quadrant q4" id="q4">
+    <div class="q-header">
+      <div class="q-label">
+        <div class="q-num">IV</div>
+        <div class="q-title-block">
+          <div class="q-title">No urgente · No importante</div>
+          <div class="q-subtitle">Eliminar o posponer</div>
+        </div>
+      </div>
+      <button class="add-btn" onclick="openModal('q4')" title="Agregar tarea">+</button>
+    </div>
+    <div class="progress-bar"><div class="progress-fill" id="prog-q4" style="width:0%"></div></div>
+    <div class="tasks-list" id="list-q4"></div>
+  </div>
+
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal">
+    <div class="modal-title">Nueva tarea — <span id="modal-q-label">Cuadrante I</span></div>
+    <div class="form-group">
+      <label class="form-label">Tarea</label>
+      <textarea class="form-textarea" id="input-task" placeholder="Describe la tarea..."></textarea>
+    </div>
+    <div class="form-group">
+      <label class="form-label">Etiqueta (opcional)</label>
+      <input class="form-input" id="input-tag" placeholder="ej. trabajo, personal, salud">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Fecha límite (opcional)</label>
+      <input class="form-input" type="date" id="input-date">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancelar</button>
+      <button class="btn-primary" onclick="addTask()">Agregar tarea</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const QLABELS = {
+    q1: 'Cuadrante I · Urgente & Importante',
+    q2: 'Cuadrante II · Planificar',
+    q3: 'Cuadrante III · Delegar',
+    q4: 'Cuadrante IV · Eliminar',
+  };
+
+  const QTAGS = {
+    q1: 'Urgente', q2: 'Importante', q3: 'Delegar', q4: 'Eliminar'
+  };
+
+  let tasks = JSON.parse(localStorage.getItem('matriz-tasks') || '[]');
+  let currentQ = 'q1';
+
+  function save() {
+    localStorage.setItem('matriz-tasks', JSON.stringify(tasks));
+  }
+
+  function openModal(q) {
+    currentQ = q;
+    document.getElementById('modal-q-label').textContent = QLABELS[q];
+    document.getElementById('modal-q-label').className = q;
+    document.getElementById('input-task').value = '';
+    document.getElementById('input-tag').value = '';
+    document.getElementById('input-date').value = '';
+    document.getElementById('modal-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('input-task').focus(), 50);
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('open');
+  }
+
+  function closeModalOutside(e) {
+    if (e.target === document.getElementById('modal-overlay')) closeModal();
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter' && e.ctrlKey && document.getElementById('modal-overlay').classList.contains('open')) addTask();
+  });
+
+  function addTask() {
+    const text = document.getElementById('input-task').value.trim();
+    if (!text) { document.getElementById('input-task').style.borderColor = 'var(--q1)'; return; }
+    document.getElementById('input-task').style.borderColor = '';
+    const tag = document.getElementById('input-tag').value.trim();
+    const date = document.getElementById('input-date').value;
+    tasks.push({ id: Date.now(), q: currentQ, text, tag, date, done: false, created: new Date().toISOString() });
+    save(); render(); closeModal();
+  }
+
+  function toggleTask(id) {
+    const t = tasks.find(t => t.id === id);
+    if (t) { t.done = !t.done; save(); render(); }
+  }
+
+  function deleteTask(id) {
+    tasks = tasks.filter(t => t.id !== id);
+    save(); render();
+  }
+
+  function formatDate(str) {
+    if (!str) return '';
+    const [y, m, d] = str.split('-');
+    return `${d}/${m}/${y}`;
+  }
+
+  function isOverdue(dateStr) {
+    if (!dateStr) return false;
+    return new Date(dateStr) < new Date(new Date().toDateString());
+  }
+
+  function render() {
+    ['q1','q2','q3','q4'].forEach(q => {
+      const list = document.getElementById(`list-${q}`);
+      const qtasks = tasks.filter(t => t.q === q);
+
+      if (qtasks.length === 0) {
+        list.innerHTML = `<div class="empty-state"><div class="empty-icon">○</div><div class="empty-text">Sin tareas</div></div>`;
+      } else {
+        list.innerHTML = qtasks.map(t => `
+          <div class="task-card ${t.done ? 'done' : ''}" onclick="toggleTask(${t.id})">
+            <div class="check-box"></div>
+            <div class="task-body">
+              <div class="task-text">${escHtml(t.text)}</div>
+              <div class="task-meta">
+                ${t.tag ? `<span class="task-tag">${escHtml(t.tag)}</span>` : `<span class="task-tag">${QTAGS[q]}</span>`}
+                ${t.date ? `<span class="task-date" style="${isOverdue(t.date) && !t.done ? 'color:var(--q1)' : ''}">${isOverdue(t.date) && !t.done ? '⚠ ' : ''}${formatDate(t.date)}</span>` : ''}
+              </div>
+            </div>
+            <button class="delete-btn" onclick="event.stopPropagation();deleteTask(${t.id})" title="Eliminar">✕</button>
+          </div>
+        `).join('');
+      }
+
+      const done = qtasks.filter(t => t.done).length;
+      const pct = qtasks.length ? Math.round(done / qtasks.length * 100) : 0;
+      document.getElementById(`prog-${q}`).style.width = pct + '%';
+    });
+
+    const total = tasks.length;
+    const done = tasks.filter(t => t.done).length;
+    const urgent = tasks.filter(t => t.q === 'q1' && !t.done).length;
+    document.getElementById('stat-total').textContent = total;
+    document.getElementById('stat-done').textContent = done;
+    document.getElementById('stat-urgent').textContent = urgent;
+    document.getElementById('stat-pct').textContent = total ? Math.round(done/total*100) + '%' : '0%';
+  }
+
+  function escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  render();
+</script>
+</body>
+  </html>
+  
